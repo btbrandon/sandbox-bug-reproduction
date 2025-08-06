@@ -9,12 +9,6 @@ import { baseFiles } from "../base-files.js";
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
-
-// Serve the interface on the root route
-app.get("/", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public", "index.html"));
-});
 
 // Base directory for sandboxes
 const ROOT_DIR = "/private/tmp/vite-sandboxes";
@@ -72,32 +66,6 @@ async function copyFromTemplate(targetPath) {
     console.error("[sandbox] Failed to copy from template:", error);
   }
   return false;
-}
-
-// Function to get all files in a directory recursively
-async function getAllFiles(dirPath, rootPath = dirPath) {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  let files = {};
-
-  for (const entry of entries) {
-    const fullPath = path.join(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      // Ignore node_modules and .git directories
-      if (entry.name !== "node_modules" && entry.name !== ".git") {
-        Object.assign(files, await getAllFiles(fullPath, rootPath));
-      }
-    } else {
-      const relativePath = `/${path.relative(rootPath, fullPath)}`;
-      try {
-        files[relativePath] = await fs.readFile(fullPath, "utf-8");
-      } catch (readError) {
-        console.warn(
-          `[sandbox] Could not read file ${fullPath}: ${readError.message}`
-        );
-      }
-    }
-  }
-  return files;
 }
 
 // Function to install dependencies in a project directory
@@ -336,164 +304,6 @@ app.post("/start", async (req, res) => {
   }
 });
 
-// Update files in existing sandbox
-app.post("/update", async (req, res) => {
-  console.log("[sandbox] Received POST /update request");
-  try {
-    const { sandboxId, files } = req.body;
-
-    if (!sandboxId || !files || typeof files !== "object") {
-      return res
-        .status(400)
-        .json({ error: "Invalid sandboxId or files input" });
-    }
-
-    // Find the active sandbox
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) {
-      return res.status(404).json({ error: "Sandbox not found or expired" });
-    }
-
-    console.log(`[sandbox] Updating files in sandbox: ${sandboxId}`);
-    console.log(`[sandbox] Files to update:`, Object.keys(files));
-
-    // Write updated files to the project directory
-    for (const [filePath, content] of Object.entries(files)) {
-      // Remove leading slash if present
-      const cleanPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
-      const fullPath = path.join(sandbox.projectPath, cleanPath);
-      await fs.ensureFile(fullPath);
-      await fs.writeFile(fullPath, content);
-      console.log(`[sandbox] Updated file: ${cleanPath}`);
-    }
-
-    const sandboxUrl = `http://localhost:${sandbox.port}/`;
-    console.log(
-      `[sandbox] ✅ Files updated successfully. Sandbox available at: ${sandboxUrl}`
-    );
-
-    return res.json({ success: true, sandboxUrl });
-  } catch (err) {
-    console.error("[sandbox] File update error:", err);
-    return res
-      .status(500)
-      .json({ error: err instanceof Error ? err.message : String(err) });
-  }
-});
-
-app.put("/sandboxes/:id/file", async (req, res) => {
-  const { id } = req.params;
-  const { path: relPath, content } = req.body;
-  if (!relPath || typeof content !== "string") {
-    return res.status(400).json({ error: "path and content required" });
-  }
-
-  const sandbox = activeSandboxes.get(id);
-  if (!sandbox) {
-    return res.status(404).json({ error: "Sandbox not found" });
-  }
-
-  const fullPath = path.join(sandbox.projectPath, relPath.replace(/^\/+/, ""));
-  await fs.ensureFile(fullPath);
-  await fs.writeFile(fullPath, content);
-
-  console.log(`[sandbox] Updated file ${relPath} in sandbox ${id}`);
-  res.json({ ok: true });
-});
-
-// Clean up a specific sandbox
-app.delete("/sandboxes/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const sandbox = activeSandboxes.get(id);
-    if (!sandbox) {
-      return res.status(404).json({ error: "Sandbox not found" });
-    }
-
-    // Close Vite server
-    if (sandbox.viteServer && typeof sandbox.viteServer.close === "function") {
-      await sandbox.viteServer.close();
-      console.log(`[sandbox] Closed Vite server for sandbox ${id}`);
-    }
-
-    // Remove from active sandboxes
-    activeSandboxes.delete(id);
-
-    // Remove from chat mapping if exists
-    if (sandbox.chatId && sandboxesByChat.get(sandbox.chatId) === id) {
-      sandboxesByChat.delete(sandbox.chatId);
-      console.log(`[sandbox] Removed chat mapping for ${sandbox.chatId}`);
-    }
-
-    // Optionally clean up files (commented out for safety)
-    // await fs.remove(sandbox.projectPath);
-
-    console.log(`[sandbox] ✅ Cleaned up sandbox ${id}`);
-    res.json({ success: true });
-  } catch (error) {
-    console.error(`[sandbox] Error cleaning up sandbox ${id}:`, error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Check if a sandbox exists for a chat
-app.get("/sandbox/:chatId", (req, res) => {
-  const { chatId } = req.params;
-
-  console.log(`[sandbox] Checking sandbox for chat: ${chatId}`);
-  const sandboxId = sandboxesByChat.get(chatId);
-  const sandbox = sandboxId ? activeSandboxes.get(sandboxId) : null;
-
-  if (sandbox) {
-    console.log(`[sandbox] Found sandbox ${sandboxId} for chat ${chatId}`);
-    res.json({
-      exists: true,
-      sandboxId,
-      sandboxUrl: sandbox.viteServer
-        ? `http://localhost:${sandbox.port}`
-        : null,
-      chatId: sandbox.chatId,
-    });
-  } else {
-    console.log(`[sandbox] No sandbox found for chat ${chatId}`);
-    res.json({ exists: false });
-  }
-});
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// List active sandboxes
-app.get("/sandboxes", async (req, res) => {
-  try {
-    const dirs = await fs.readdir(ROOT_DIR);
-    res.json({ sandboxes: dirs });
-  } catch (error) {
-    res.json({ sandboxes: [] });
-  }
-});
-
-// Endpoint to get all files for a sandbox
-app.get("/files/:sandboxId", async (req, res) => {
-  const { sandboxId } = req.params;
-  const sandbox = activeSandboxes.get(sandboxId);
-
-  if (!sandbox) {
-    return res.status(404).json({ error: "Sandbox not found" });
-  }
-
-  try {
-    const files = await getAllFiles(sandbox.projectPath);
-    res.json({ files });
-  } catch (error) {
-    console.error(`[sandbox] Error getting files for ${sandboxId}:`, error);
-    res.status(500).json({ error: "Failed to get sandbox files" });
-  }
-});
-
 // Create sandbox with default base files
 app.post("/sandboxes", async (req, res) => {
   console.log("[sandbox] Received POST /sandboxes request");
@@ -629,6 +439,91 @@ app.post("/sandboxes", async (req, res) => {
       .status(500)
       .json({ error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+app.put("/sandboxes/:id/file", async (req, res) => {
+  const { id } = req.params;
+  const { path: relPath, content } = req.body;
+  if (!relPath || typeof content !== "string") {
+    return res.status(400).json({ error: "path and content required" });
+  }
+
+  const sandbox = activeSandboxes.get(id);
+  if (!sandbox) {
+    return res.status(404).json({ error: "Sandbox not found" });
+  }
+
+  const fullPath = path.join(sandbox.projectPath, relPath.replace(/^\/+/, ""));
+  await fs.ensureFile(fullPath);
+  await fs.writeFile(fullPath, content);
+
+  console.log(`[sandbox] Updated file ${relPath} in sandbox ${id}`);
+  res.json({ ok: true });
+});
+
+// Clean up a specific sandbox
+app.delete("/sandboxes/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const sandbox = activeSandboxes.get(id);
+    if (!sandbox) {
+      return res.status(404).json({ error: "Sandbox not found" });
+    }
+
+    // Close Vite server
+    if (sandbox.viteServer && typeof sandbox.viteServer.close === "function") {
+      await sandbox.viteServer.close();
+      console.log(`[sandbox] Closed Vite server for sandbox ${id}`);
+    }
+
+    // Remove from active sandboxes
+    activeSandboxes.delete(id);
+
+    // Remove from chat mapping if exists
+    if (sandbox.chatId && sandboxesByChat.get(sandbox.chatId) === id) {
+      sandboxesByChat.delete(sandbox.chatId);
+      console.log(`[sandbox] Removed chat mapping for ${sandbox.chatId}`);
+    }
+
+    // Optionally clean up files (commented out for safety)
+    // await fs.remove(sandbox.projectPath);
+
+    console.log(`[sandbox] ✅ Cleaned up sandbox ${id}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error(`[sandbox] Error cleaning up sandbox ${id}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if a sandbox exists for a chat
+app.get("/sandbox/:chatId", (req, res) => {
+  const { chatId } = req.params;
+
+  console.log(`[sandbox] Checking sandbox for chat: ${chatId}`);
+  const sandboxId = sandboxesByChat.get(chatId);
+  const sandbox = sandboxId ? activeSandboxes.get(sandboxId) : null;
+
+  if (sandbox) {
+    console.log(`[sandbox] Found sandbox ${sandboxId} for chat ${chatId}`);
+    res.json({
+      exists: true,
+      sandboxId,
+      sandboxUrl: sandbox.viteServer
+        ? `http://localhost:${sandbox.port}`
+        : null,
+      chatId: sandbox.chatId,
+    });
+  } else {
+    console.log(`[sandbox] No sandbox found for chat ${chatId}`);
+    res.json({ exists: false });
+  }
+});
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Graceful shutdown

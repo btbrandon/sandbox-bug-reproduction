@@ -8,7 +8,6 @@ export const baseFiles = [
   "type": "module",
   "scripts": {
     "build": "remix vite:build",
-    "deploy": "npm run build && npx wrangler pages deploy build/client --project-name nikastudio --branch test",
     "dev": "remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "wrangler pages dev ./build/client",
