@@ -14,8 +14,8 @@ bug-reproduction/
 
 When the same MapLibre GL JS code with Tailwind CSS styling is:
 
-- **Run directly** in `1-direct-project/`: Map markers display correctly
-- **Run through sandbox server** in `2-sandbox-project/`: Map markers have styling/positioning issues
+- **Run directly** in `1-direct-project/`: Map markers display correctly, Map renders correctly
+- **Run through sandbox server** in `2-sandbox-project/`: Map markers have styling/positioning issues, Map does not render
 
 This demonstrates a potential conflict between Tailwind CSS processing and sandbox environments.
 
