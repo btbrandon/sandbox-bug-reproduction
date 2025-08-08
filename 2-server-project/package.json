@@ -1,0 +1,14 @@
+{
+  "name": "vite-bug-reproduction",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Minimal Vite createServer bug reproduction",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "fs-extra": "^11.3.0",
+    "vite": "^6.0.0"
+  }
+}

@@ -1,28 +1,26 @@
 # Bug Reproduction Repository
 
-This repository demonstrates a Tailwind CSS styling issue when code is executed in a sandboxed environment versus running directly in an IDE.
+This repository demonstrates Vite createServer issues with Remix projects in different environments.
 
 ## Repository Structure
 
 ```
 bug-reproduction/
-├── 1-direct-project/          # Direct Remix project (works correctly)
-├── 2-sandbox-project/         # Next.js wrapper with sandbox server (shows bug)
+├── 1-direct-project/          # Direct Remix project (reference implementation)
+├── 2-server-project/          # Standalone Node.js server reproduction
 └── README.md                  # This file
 ```
 
 ## Issue Description
 
-When the same MapLibre GL JS code with Tailwind CSS styling is:
+This repository contains different approaches to reproduce Vite createServer issues:
 
-- **Run directly** in `1-direct-project/`: Map markers display correctly, Map renders correctly
-- **Run through sandbox server** in `2-sandbox-project/`: Map markers have styling/positioning issues, Map does not render
-
-This demonstrates a potential conflict between Tailwind CSS processing and sandbox environments.
+- **Direct project** in `1-direct-project/`: Standard Remix project setup
+- **Server reproduction** in `2-server-project/`: Minimal Node.js script that uses Vite's createServer API
 
 ## Quick Start
 
-### Option 1: Run Direct Project (Expected Behavior)
+### Option 1: Run Direct Project (Reference)
 
 ```bash
 cd 1-direct-project
@@ -30,52 +28,47 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 to see the correctly styled map markers.
+Open http://localhost:5173 to see the standard Remix application.
 
-### Option 2: Run Sandbox Project (Bug Demonstration)
+### Option 2: Run Server Reproduction (Bug Investigation)
 
 ```bash
-cd 2-sandbox-project
+cd 2-server-project
 npm install
-npm run dev
+node index.js
 ```
 
-Then in a separate terminal:
+Open http://localhost:5173 to see the Vite createServer reproduction.
 
-```bash
-cd 2-sandbox-project
-npm run sandbox:dev
-```
+## Server Project Features
 
-Open http://localhost:3000 to see the Next.js app with an iframe showing the sandboxed version with styling issues.
+The `2-server-project` includes optimizations:
 
-## Bug Analysis
-
-The sandbox server in `2-sandbox-project/sandbox-server/` creates dynamic Vite instances that serve the same code as `1-direct-project/`, but the Tailwind CSS processing appears to be affected by the sandboxed environment, leading to:
-
-- Missing or malformed styles
-- Potential CSS class conflicts
+- **Template caching**: First run creates template with dependencies
+- **Fast copying**: Subsequent runs copy from template (~5 seconds vs ~2 minutes)
+- **Proper config**: Uses `vite.config.ts` with Remix plugins
+- **Error reproduction**: Minimal environment to isolate Vite issues
 
 ## Technologies Used
 
 - **MapLibre GL JS**: Interactive map rendering
 - **Tailwind CSS**: Utility-first CSS framework
-- **Remix**: Full-stack web framework (direct project)
-- **Next.js**: React framework (sandbox wrapper)
-- **Vite**: Build tool and dev server
-- **Express**: Sandbox server backend
+- **Remix**: Full-stack web framework
+- **Vite**: Build tool and dev server with createServer API
+- **Node.js**: Server runtime for reproduction script
 
 ## Investigation Notes
 
 This bug reproduction is designed to help identify:
 
-1. How Tailwind CSS processing differs between direct and sandboxed environments
-2. Whether the issue is related to CSS build processes, class name generation, or runtime styling
-3. Potential solutions for maintaining consistent styling across different execution environments
+1. How Vite's createServer API behaves with Remix projects
+2. Configuration issues between direct Vite usage and Remix integration
+3. Entry point resolution problems (e.g., entry.client.tsx errors)
+4. Plugin loading and transformation pipeline issues
 
 ## Getting Started
 
 See the individual README files in each subfolder for detailed setup instructions:
 
 - [Direct Project Setup](./1-direct-project/README.md)
-- [Sandbox Project Setup](./2-sandbox-project/README.md)
+- [Server Project Setup](./2-server-project/README.md)
