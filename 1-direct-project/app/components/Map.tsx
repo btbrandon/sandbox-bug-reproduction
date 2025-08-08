@@ -1,18 +1,37 @@
-import Map, { Marker, Popup } from "react-map-gl/maplibre";
-import { useState } from "react";
+import Map, { Marker } from "react-map-gl/maplibre";
 
-export interface MapLayer {
-  id: string;
-  name: string;
-  color: string;
-  description: string;
-  data: {
-    name: string;
-    latitude: number;
-    longitude: number;
-    details: string;
-  }[];
-}
+const TALLEST_TOWERS = [
+  {
+    name: "Burj Khalifa",
+    latitude: 25.1972,
+    longitude: 55.2744,
+    details: "Dubai, UAE — 828m (2,717 ft)",
+  },
+  {
+    name: "Shanghai Tower",
+    latitude: 31.2336,
+    longitude: 121.5055,
+    details: "Shanghai, China — 632m (2,073 ft)",
+  },
+  {
+    name: "Abraj Al-Bait Clock Tower",
+    latitude: 21.4187,
+    longitude: 39.8256,
+    details: "Mecca, Saudi Arabia — 601m (1,972 ft)",
+  },
+  {
+    name: "Ping An Finance Center",
+    latitude: 22.5333,
+    longitude: 114.0556,
+    details: "Shenzhen, China — 599m (1,965 ft)",
+  },
+  {
+    name: "Lotte World Tower",
+    latitude: 37.5131,
+    longitude: 127.1028,
+    details: "Seoul, South Korea — 555m (1,819 ft)",
+  },
+];
 
 interface MapComponentProps {
   mapStyle?: string;
@@ -23,80 +42,33 @@ interface MapComponentProps {
     pitch: number;
     bearing: number;
   };
-  layers: MapLayer[];
-  visibleLayerIds: string[];
 }
 
 export function MapComponent({
   mapStyle = "https://demotiles.maplibre.org/style.json",
   initialViewState,
-  layers,
-  visibleLayerIds,
 }: MapComponentProps) {
-  const [popup, setPopup] = useState<{
-    latitude: number;
-    longitude: number;
-    name: string;
-    details: string;
-  } | null>(null);
-
   return (
     <div className="relative w-full h-screen">
       <Map
         initialViewState={initialViewState}
         mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
-        attributionControl={true}
       >
-        {layers
-          .filter((layer) => visibleLayerIds.includes(layer.id))
-          .flatMap((layer) =>
-            layer.data.map((item, idx) => (
-              <Marker
-                key={`${layer.id}-${idx}`}
-                longitude={item.longitude}
-                latitude={item.latitude}
-                anchor="bottom"
-                onClick={(e) => {
-                  e.originalEvent.stopPropagation();
-                  setPopup({
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    name: item.name,
-                    details: item.details,
-                  });
-                }}
-              >
-                <span
-                  className="block w-4 h-4 rounded-full border-2 shadow-lg cursor-pointer"
-                  style={{
-                    backgroundColor: layer.color,
-                    borderColor: "#fff",
-                  }}
-                  title={item.name}
-                />
-              </Marker>
-            ))
-          )}
-        {popup && (
-          <Popup
-            longitude={popup.longitude}
-            latitude={popup.latitude}
-            anchor="top"
-            closeButton={true}
-            closeOnClick={false}
-            onClose={() => setPopup(null)}
-            offset={12}
-            maxWidth="240px"
+        {TALLEST_TOWERS.map((item, idx) => (
+          <Marker
+            key={idx}
+            longitude={item.longitude}
+            latitude={item.latitude}
+            anchor="bottom"
           >
-            <div>
-              <div className="font-bold text-base mb-1">{popup.name}</div>
-              <div className="text-sm text-gray-700 dark:text-gray-200">
-                {popup.details}
-              </div>
-            </div>
-          </Popup>
-        )}
+            <span
+              className="block w-4 h-4 rounded-full border-2 shadow-lg cursor-pointer"
+              style={{ backgroundColor: "#2563eb", borderColor: "#fff" }}
+              title={item.name}
+            />
+          </Marker>
+        ))}
       </Map>
     </div>
   );

@@ -1,6 +1,7 @@
 # Bug Reproduction Repository
 
 This repository demonstrates a Tailwind CSS styling issue when code is executed in a sandboxed environment versus running directly in an IDE.
+
 ## Repository Structure
 
 ```
