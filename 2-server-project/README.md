@@ -60,3 +60,4 @@ This is a simplified version of the original sandbox server system, designed to 
 - **Subsequent runs fast**: Should start in ~5 seconds by copying from template
 - **Clear template**: Delete `template/` directory to force reinstallation
 - **Port conflicts**: Script uses `strictPort: false` to find available port
+- **First render errors**: Sometimes the initial page load may show errors - **refresh the browser** to resolve this issue
