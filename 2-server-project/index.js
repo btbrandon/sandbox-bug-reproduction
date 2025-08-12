@@ -1,4 +1,3 @@
-import { createServer } from "vite";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,15 +12,12 @@ const PORT = 5173;
 async function setupProject() {
   console.log("🚀 Setting up temporary Remix project...");
 
-  // Clean up any existing project
   if (await fs.pathExists(PROJECT_DIR)) {
     await fs.remove(PROJECT_DIR);
   }
 
-  // Create project directory
   await fs.ensureDir(PROJECT_DIR);
 
-  // Write all base files
   for (const file of baseFiles) {
     const filePath = path.join(PROJECT_DIR, file.path);
     await fs.ensureDir(path.dirname(filePath));
@@ -57,33 +53,30 @@ async function startViteServer() {
   console.log("🔥 Starting Vite development server...");
 
   try {
+    const viteModulePath = path.join(
+      PROJECT_DIR,
+      "node_modules",
+      "vite",
+      "dist",
+      "node",
+      "index.js"
+    );
+    const { createServer } = await import(viteModulePath);
+
+    console.log(`Creating Vite server for ${PROJECT_DIR}...`);
+
     const server = await createServer({
       root: PROJECT_DIR,
       mode: "development",
-      // define: {
-      //   "process.env.NODE_ENV": "development",
-      // },
       configFile: path.join(PROJECT_DIR, "vite.config.ts"),
       server: {
-        PORT,
-        strictPort: true,
-        hmr: { clientPort: PORT },
-        watch: {
-          // Ensure CSS files are watched for changes
-          ignored: ["!**/app/**/*.css"],
-        },
-      },
-      build: {
-        cssCodeSplit: false,
-      },
-      optimizeDeps: {
-        include: ["tailwindcss", "autoprefixer"],
+        port: PORT,
+        strictPort: false,
+        host: true,
       },
     });
 
     await server.listen();
-
-    const info = server.config.logger.info;
 
     console.log("\n🎉 Vite server started successfully!");
     console.log(
@@ -93,6 +86,12 @@ async function startViteServer() {
 
     // Keep the server running
     process.on("SIGINT", async () => {
+      console.log("\n👋 Shutting down server...");
+      await server.close();
+      process.exit(0);
+    });
+
+    process.on("SIGTERM", async () => {
       console.log("\n👋 Shutting down server...");
       await server.close();
       process.exit(0);

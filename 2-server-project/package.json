@@ -8,7 +8,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "fs-extra": "^11.3.0",
-    "vite": "^6.0.0"
+    "fs-extra": "^11.3.0"
   }
 }
